@@ -1,21 +1,20 @@
 {
-  "name": "alpha-feed-frontend",
-  "private": true,
+  "name": "alpha-feed-proxy",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
+  "description": "CORS-free proxy + PumpPortal websocket fan-out for the ALPHA FEED Solana scanner",
+  "main": "server.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "lucide-react": "^0.383.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "recharts": "^2.12.7"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.3.1"
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
   }
 }
