@@ -3,11 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "CORS-free proxy + PumpPortal websocket fan-out for the ALPHA FEED Solana scanner",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=18"
