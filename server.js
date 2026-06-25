@@ -76,7 +76,41 @@ function proxy(source) {
 
 app.get(/^\/api\/dexscreener\/(.*)/, proxy("dexscreener"));
 app.get(/^\/api\/rugcheck\/(.*)/, proxy("rugcheck"));
-app.get(/^\/api\/meteora\/(.*)/, proxy("meteora"));
+
+/* Meteora /pair/all is multi-MB and slow — fetch it server-side on a timer and
+   cache the trimmed top pairs, so the browser gets an instant response instead
+   of timing out. First call returns [] and kicks a background refresh. */
+let meteoraCache = [];
+let meteoraAt = 0;
+let meteoraFetching = false;
+const METEORA_TTL = 60 * 1000;
+
+async function refreshMeteora() {
+  if (meteoraFetching) return;
+  meteoraFetching = true;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 25000); // generous server-side budget
+    const r = await fetch(`${UPSTREAM.meteora}/pair/all`, { signal: ctrl.signal, headers: { accept: "application/json" } });
+    clearTimeout(t);
+    const arr = await r.json();
+    if (Array.isArray(arr)) {
+      meteoraCache = arr
+        .filter((p) => Number(p.liquidity || 0) > 0)
+        .sort((a, b) => Number(b.trade_volume_24h || 0) - Number(a.trade_volume_24h || 0))
+        .slice(0, 80);
+      meteoraAt = Date.now();
+      console.log(`[meteora] cached ${meteoraCache.length} top pairs`);
+    }
+  } catch (e) { console.log("[meteora] refresh failed:", String(e)); } // keep last cache
+  finally { meteoraFetching = false; }
+}
+
+app.get("/api/meteora/pair/all", (_req, res) => {
+  if (Date.now() - meteoraAt > METEORA_TTL && !meteoraFetching) refreshMeteora(); // refresh in background
+  res.type("application/json").send(JSON.stringify(meteoraCache));
+});
+app.get(/^\/api\/meteora\/(.*)/, proxy("meteora")); // any other meteora path passes through
 
 /* ---- Helius enrichment: the signals the free APIs don't expose ----
    Real holder count, top-10 %, mint/freeze authority, and dev run/stay.
@@ -343,6 +377,7 @@ app.get("/api/smart/:mint", (req, res) => {
 });
 
 if (HELIUS_API_KEY && SMART_WALLETS.length) buildSmartIndex(); // warm up on boot
+refreshMeteora(); // warm the Meteora cache so the first browser request is instant
 
 // ------------------------------------------------------------------ server --
 const server = http.createServer(app);
